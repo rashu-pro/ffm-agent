@@ -4,9 +4,8 @@ import pandas as pd
 # --------------------
 # SETTINGS
 # --------------------
-# change to any player web_name
-preselected_names = ["Haaland", "M.Salah", "Gabriel", "Sánchez", "Cucurella", "Virgil"]
-budget = 1000  # 100.0m in tenths
+preselected_names = ["M.Salah", "Gabriel", "Sánchez", "Cucurella", "Virgil"]
+budget = 1000  # 100.0m in tenths (100m)
 
 # --------------------
 # FETCH DATA
@@ -35,34 +34,70 @@ if len(preselected) < len(preselected_names):
 selected = [preselected]
 
 # --------------------
-# BASE FORMATION
+# BUILD FULL 15-MAN SQUAD
 # --------------------
-formation = {"GK": 1, "DEF": 3, "MID": 3, "FWD": 1}
+formation = {"GK": 1, "DEF": 2, "MID": 4, "FWD": 2}
 
 for pos, count in formation.items():
     best = players[~players['id'].isin(preselected['id'])]
     best = best[best['position'] == pos].nlargest(count, 'score')
     selected.append(best)
 
-# --------------------
-# FILL REMAINING SPOTS
-# --------------------
-remaining = pd.concat(selected)
-needed = 11 - len(remaining)
-extra = players[~players['id'].isin(remaining['id'])].nlargest(needed, 'score')
-selected.append(extra)
-
-# --------------------
-# FINAL SQUAD
-# --------------------
-squad = pd.concat(selected)
+squad = pd.concat(selected).drop_duplicates("id").head(15)
 total_cost = squad['now_cost'].sum() / 10
 
-print("\n🔮 Suggested Starting XI (with preselected players):\n")
+# --------------------
+# PICK STARTING XI (valid formation)
+# --------------------
+starting_xi = []
+
+# 1 GK (best one)
+gk = squad[squad['position'] == "GK"].nlargest(1, 'score')
+starting_xi.append(gk)
+
+# At least 3 DEF
+defs = squad[squad['position'] == "DEF"].nlargest(3, 'score')
+starting_xi.append(defs)
+
+# At least 2 MID
+mids = squad[squad['position'] == "MID"].nlargest(2, 'score')
+starting_xi.append(mids)
+
+# At least 1 FWD
+fwds = squad[squad['position'] == "FWD"].nlargest(1, 'score')
+starting_xi.append(fwds)
+
+# Fill remaining spots (11 total)
+remaining_needed = 11 - sum(len(df) for df in starting_xi)
+used_ids = pd.concat(starting_xi)['id']
+remaining_players = squad[~squad['id'].isin(used_ids)].nlargest(remaining_needed, 'score')
+starting_xi.append(remaining_players)
+
+starting_xi = pd.concat(starting_xi)
+
+# --------------------
+# CAPTAIN & VICE
+# --------------------
+captain = starting_xi.nlargest(1, 'score').iloc[0]
+vice_captain = starting_xi.nlargest(2, 'score').iloc[1]
+
+# --------------------
+# PRINT RESULTS
+# --------------------
+print("\n🏆 Full 15-Man Squad:\n")
 for _, p in squad.iterrows():
     star = "⭐" if p['web_name'] in preselected_names else ""
     print(f"{p['web_name']} - {p['team_name']} ({p['position']}) | "
           f"Form: {p['form']} | PPG: {p['points_per_game']} | "
           f"Price: {p['now_cost']/10}m {star}")
 
-print(f"\n💰 Total Cost: {total_cost:.1f}m")
+print(f"\n💰 Squad Total Cost: {total_cost:.1f}m")
+
+print("\n🔮 Suggested Starting XI:\n")
+for _, p in starting_xi.iterrows():
+    cap = " (C)" if p['id'] == captain['id'] else ""
+    vcap = " (VC)" if p['id'] == vice_captain['id'] else ""
+    star = "⭐" if p['web_name'] in preselected_names else ""
+    print(f"{p['web_name']} - {p['team_name']} ({p['position']}) "
+          f"| Form: {p['form']} | PPG: {p['points_per_game']} | "
+          f"Price: {p['now_cost']/10}m{cap}{vcap} {star}")
