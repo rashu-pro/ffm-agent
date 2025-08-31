@@ -4,7 +4,8 @@ import pandas as pd
 # --------------------
 # SETTINGS
 # --------------------
-preselected_names = ["Haaland", "Salah"]   # change to any player web_name
+# change to any player web_name
+preselected_names = ["Haaland", "M.Salah", "Gabriel", "Sánchez", "Cucurella", "Virgil"]
 budget = 1000  # 100.0m in tenths
 
 # --------------------
